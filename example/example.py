@@ -2,7 +2,7 @@
 Run IBP on the synthetic 'Cambridge Bars' dataset
 """
 import sys
-import cPickle as CP
+import pickle as CP
 
 import numpy as NP
 import scipy.io as SPIO
@@ -38,21 +38,21 @@ f = IBP(cdata,(alpha,alpha_a,alpha_b),
 for s in range(numsamp):
     # Print current chain state
     f.sampleReport(s)
-    print 'Learned weights (rounded)'
+    print('Learned weights (rounded)')
     for factor in NP.round(f.weights()).astype(NP.int):
-        print str(factor.reshape((6,6)))
-    print 'True weights'
+        print(str(factor.reshape((6,6))))
+    print('True weights')
     for factor in trueWeights:
-        print str(factor.reshape((6,6)))    
+        print(str(factor.reshape((6,6))))
     # Take a new sample
-    f.fullSample()    
+    f.fullSample()
 
 # If matplotlib is installed, plot ground truth vs learned factors
 try:
     import matplotlib.pyplot as P
     from scaledimage import scaledimage
 except:
-    print 'matplotlib not installed, skipping visualization...'
+    print('matplotlib not installed, skipping visualization...')
     sys.exit(0)
 
 # Intensity plots of
@@ -69,8 +69,8 @@ for (idx, trueFactor) in enumerate(trueWeights):
     scaledimage(trueFactor.reshape(6,6),
                 pixwidth=3, ax=ax)
 for (idx, learnedFactor) in enumerate(f.weights()):
-    ax = subaxes[1, idx]    
+    ax = subaxes[1, idx]
     scaledimage(learnedFactor.reshape(6,6),
                 pixwidth=3, ax=ax)
     ax.set_visible(True)
-P.show()    
+P.show()
