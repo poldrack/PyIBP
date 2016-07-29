@@ -40,18 +40,18 @@ class PyIBP(object):
 
     def __init__(self,data,alpha,sigma_x,sigma_a,
                  missing=None,useV=False,initZV=None):
-        """ 
+        """
         data = NxD NumPy data matrix (should be centered)
 
         alpha = Fixed IBP hyperparam for OR (init,a,b) tuple where
         (a,b) are Gamma hyperprior shape and rate/inverse scale
         sigma_x = Fixed noise std OR (init,a,b) tuple (same as alpha)
         sigma_a = Fixed weight std OR (init,a,b) tuple (same as alpha)
-        
+
         OPTIONAL ARGS
         missing = boolean/binary 'missing data' mask (1=missing entry)
         useV = Are we using real-valued latent features? (default binary)
-        initZV = Optional initial state for the latent         
+        initZV = Optional initial state for the latent
         """
         # Data matrix
         self.X = data
@@ -72,7 +72,7 @@ class PyIBP(object):
         else:
             (self.sigma_a,self.sigma_aa,self.sigma_ab) = (sigma_a,None,None)
         # Are we using weighted latent features?
-        self.useV = useV                            
+        self.useV = useV
         # Do we have user-supplied initial latent feature values?
         if(initZV == None):
             # Initialze Z from IBP(alpha)
@@ -90,7 +90,7 @@ class PyIBP(object):
             self.sampleX()
 
     def initV(self):
-        """ Init latent feature weights V accoring to N(0,1) """        
+        """ Init latent feature weights V accoring to N(0,1) """
         for (i,k) in zip(*self.ZV.nonzero()):
             self.ZV[i,k] = NR.normal(0,1)
 
@@ -132,7 +132,7 @@ class PyIBP(object):
         (or P(X,Z,V) if applicable)
         """
         liketerm = self.logPX(self.calcM(self.ZV),self.ZV)
-        ibpterm = self.logIBP()    
+        ibpterm = self.logIBP()
         if(self.useV):
             vterm = self.logPV()
             return liketerm+ibpterm+vterm
@@ -167,7 +167,7 @@ class PyIBP(object):
                 right = newv
             newv = NR.uniform(left,right)
             newval = self.vLogPost(k,newv,meanA,covarA,xi,zi)
-        return newv        
+        return newv
 
     def makeInterval(self,u,k,v,meanA,covarA,xi,zi):
         """ Get horizontal slice sampling interval """
@@ -176,15 +176,15 @@ class PyIBP(object):
         (leftval,rightval) = (self.vLogPost(k,left,meanA,covarA,xi,zi),
                               self.vLogPost(k,right,meanA,covarA,xi,zi))
         while(leftval > u):
-            left -= w 
+            left -= w
             leftval = self.vLogPost(k,left,meanA,covarA,xi,zi)
         while(rightval > u):
             right += w
-            rightval = self.vLogPost(k,right,meanA,covarA,xi,zi) 
+            rightval = self.vLogPost(k,right,meanA,covarA,xi,zi)
         return (left,right)
 
     def vLogPost(self,k,v,meanA,covarA,xi,zi):
-        """ For a given V, calculate the log-posterior """        
+        """ For a given V, calculate the log-posterior """
         oldv = zi[0,k]
         zi[0,k] = v
         (meanLike,covarLike) = self.likeXi(zi,meanA,covarA)
@@ -212,11 +212,11 @@ class PyIBP(object):
         n = float(self.K * self.D)
         postShape = self.sigma_aa + n/2
         postScale = float(1) / (self.sigma_ab + var_a/2)
-        tau_a = SPST.gamma.rvs(postShape,scale=postScale)        
+        tau_a = SPST.gamma.rvs(postShape,scale=postScale)
         self.sigma_a = NP.sqrt(float(1)/tau_a)
         if(self.sigma_a > 100):
             pdb.set_trace()
-        
+
     def sampleAlpha(self):
         """ Sample alpha from conjugate posterior """
         postShape = self.alpha_a + self.m.sum()
@@ -226,7 +226,7 @@ class PyIBP(object):
     def sampleX(self):
         """ Take single sample missing data entries in X """
         # Calculate posterior mean/covar --> info
-        (meanA,covarA) = self.postA(self.X,self.ZV) 
+        (meanA,covarA) = self.postA(self.X,self.ZV)
         (infoA,hA) = self.toInfo(meanA,covarA)
         # Find missing observations
         xis = NP.nonzero(self.missing.max(axis=1))[0]
@@ -238,9 +238,9 @@ class PyIBP(object):
             infoA_i = self.updateInfo(infoA,zi,-1)
             hA_i = self.updateH(hA,zi,xi,-1)
             # Convert back to mean/covar
-            (meanA_i,covarA_i) = self.fromInfo(infoA_i,hA_i)            
+            (meanA_i,covarA_i) = self.fromInfo(infoA_i,hA_i)
             # Resample xi
-            (meanXi,covarXi) = self.likeXi(zi,meanA_i,covarA_i)                
+            (meanXi,covarXi) = self.likeXi(zi,meanA_i,covarA_i)
             newxi = NR.normal(meanXi,NP.sqrt(covarXi))
             # Replace missing features
             ks = NP.nonzero(self.missing[i,:])[0]
@@ -257,8 +257,8 @@ class PyIBP(object):
                 try:
                     (meanA,covarA) = self.postA(self.X,self.ZV)
                     (infoA,hA) = self.toInfo(meanA,covarA)
-                except Exception,e:
-                    pdb.set_trace()                
+                except Exception as e:
+                    pdb.set_trace()
             # Get (z,x) for this data point
             (zi,xi) = (NP.reshape(self.ZV[i,:],(1,self.K)),
                        NP.reshape(self.X[i,:],(1,self.D)))
@@ -266,7 +266,7 @@ class PyIBP(object):
             infoA = self.updateInfo(infoA,zi,-1)
             hA = self.updateH(hA,zi,xi,-1)
             # Convert back to mean/covar
-            (meanA,covarA) = self.fromInfo(infoA,hA)            
+            (meanA,covarA) = self.fromInfo(infoA,hA)
             # Remove this data point from feature cts
             newcts = self.m - (self.ZV[i,:] != 0).astype(NP.int)
             # Log collapsed Beta-Bernoulli terms
@@ -295,7 +295,7 @@ class PyIBP(object):
                         (meanLike,covarLike) = self.likeXi(zi,meanA,covarA)
                         lp1 += self.logPxi(meanLike,covarLike,xi)
                     else:
-                        # Sample V values from the prior to 
+                        # Sample V values from the prior to
                         # numerically collapse/integrate
                         nvs = 5
                         lps = NP.zeros((nvs,))
@@ -371,9 +371,9 @@ class PyIBP(object):
                           self.K:(self.K+netdiff)] = infoappend
                     # only need to resize (expand) hA
                     hA = NP.vstack((hA,NP.zeros((netdiff,self.D))))
-                    # Note that the other effects of new latent features 
-                    # on (infoA,hA) (ie, the zi terms) will be counted when 
-                    # this zi is added back in                    
+                    # Note that the other effects of new latent features
+                    # on (infoA,hA) (ie, the zi terms) will be counted when
+                    # this zi is added back in
                     self.K += netdiff
                 elif(netdiff < 0):
                     # We're removing features, update ZV
@@ -387,7 +387,7 @@ class PyIBP(object):
                     # occur in any other data points anyways...
                     infoA = NP.delete(infoA,dead,axis=0)
                     infoA = NP.delete(infoA,dead,axis=1)
-                    hA = NP.delete(hA,dead,axis=0)                    
+                    hA = NP.delete(hA,dead,axis=0)
                 else:
                     # net difference is actually zero, just replace
                     # the latent weights of existing singletons
@@ -402,37 +402,37 @@ class PyIBP(object):
 
     #
     # Output and reporting
-    # 
+    #
 
     def sampleReport(self,sampleidx):
-        """ Print IBP sample status """
-        print 'iter %d' % sampleidx
-        print '\tcollapsed loglike = %f' % self.logLike()
-        print '\tK = %d' % self.K
-        print '\talpha = %f' % self.alpha
-        print '\tsigma_x = %f' % self.sigma_x
-        print '\tsigma_a = %f' % self.sigma_a
-                
+        """ print(IBP sample status """
+        print('iter %d' % sampleidx)
+        print('\tcollapsed loglike = %f' % self.logLike())
+        print('\tK = %d' % self.K)
+        print('\talpha = %f' % self.alpha)
+        print('\tsigma_x = %f' % self.sigma_x)
+        print('\tsigma_a = %f' % self.sigma_a)
+
     def weightReport(self,trueWeights=None,round=False):
-        """ Print learned weights (vs ground truth if available) """
+        """ print(learned weights (vs ground truth if available) """
         if(trueWeights != None):
-            print '\nTrue weights (A)'
-            print str(trueWeights)
-        print '\nLearned weights (A)'
-        # Print rounded or actual weights?
+            print('\nTrue weights (A)')
+            print(str(trueWeights))
+        print('\nLearned weights (A)')
+        # print(rounded or actual weights?
         if(round):
-            print str(self.weights().astype(NP.int))
+            print(str(self.weights().astype(NP.int)))
         else:
-            print NP.array_str(self.weights(),precision=2,suppress_small=True)
-        print ''
-        # Print V matrix if applicable
+            print(NP.array_str(self.weights(),precision=2,suppress_small=True))
+        print('')
+        # print(V matrix if applicable
         if(self.useV):
-            print '\nLatent feature weights (V)'
-            print NP.array_str(self.ZV,precision=2)
-            print ''
-        # Print 'popularity' of latent features
-        print '\nLatent feature counts (m)'
-        print NP.array_str(self.m)
+            print('\nLatent feature weights (V)')
+            print(NP.array_str(self.ZV,precision=2))
+            print('')
+        # print('popularity' of latent features
+        print('\nLatent feature counts (m)')
+        print(NP.array_str(self.m))
 
     #
     # Bookkeeping and calculation methods
@@ -459,11 +459,11 @@ class PyIBP(object):
         logp -= self.alpha * sum([float(1) / i for i in range(1,N+1)])
         for k in range(K):
             logp += self.logFact(N-self.m[k]) + self.logFact(self.m[k]-1)
-            logp -= self.logFact(N)        
+            logp -= self.logFact(N)
         if(logp==float('inf')):
             pdb.set_trace()
-        return logp    
-    
+        return logp
+
     def postA(self,X,Z):
         """ Mean/covar of posterior over weights A """
         M = self.calcM(Z)
@@ -473,7 +473,7 @@ class PyIBP(object):
 
     def calcM(self,Z):
         """ Calculate M = (Z' * Z - (sigmax^2) / (sigmaa^2) * I)^-1 """
-        return NP.linalg.inv(NP.dot(Z.T,Z) + (self.sigma_x**2) 
+        return NP.linalg.inv(NP.dot(Z.T,Z) + (self.sigma_x**2)
                              / (self.sigma_a**2) * NP.eye(self.K))
 
     def logPX(self,M,Z):
@@ -500,7 +500,7 @@ class PyIBP(object):
     def updateH(self,hA,zi,xi,addrm):
         """ Add/remove data i to/from h"""
         return hA + addrm * ((1/self.sigma_x**2) * NP.dot(zi.T,xi))
-    
+
     #
     # Pure functions (these don't use state or additional params)
     #
@@ -508,7 +508,7 @@ class PyIBP(object):
     @staticmethod
     def logFact(n):
         return SPS.gammaln(n+1)
-    
+
     @staticmethod
     def fromInfo(infoA,hA):
         """ Calculate mean/covar from information """
@@ -520,12 +520,12 @@ class PyIBP(object):
     def toInfo(meanA,covarA):
         """ Calculate information from mean/covar """
         infoA = NP.linalg.inv(covarA)
-        hA = NP.dot(infoA,meanA)        
+        hA = NP.dot(infoA,meanA)
         return (infoA,hA)
 
     @staticmethod
     def logUnif(v):
-        """ 
+        """
         Sample uniformly from [0, exp(v)] in the log-domain
         (derive via transform f(x)=log(x) and some calculus...)
         """
@@ -547,7 +547,7 @@ class PyIBP(object):
         ll = -(D / 2) * NP.log(covarLike)
         ll -= (1 / (2*covarLike)) * NP.power(xi-meanLike,2).sum()
         return ll
-    
+
     @staticmethod
     def centerData(data):
         return data - PyIBP.featMeans(data)
@@ -558,7 +558,7 @@ class PyIBP(object):
         (N,D) = data.shape
         if(missing == None):
             return NP.tile(data.mean(axis=0),(N,1))
-        else:        
+        else:
             # Sanity check on 'missing' mask
             # (ensure no totally missing data or features)
             assert(all(missing.sum(axis=0) < N) and
